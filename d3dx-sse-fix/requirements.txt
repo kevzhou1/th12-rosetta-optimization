@@ -1,0 +1,3 @@
+# only needed for verify.py
+unicorn>=2.1
+numpy>=1.24

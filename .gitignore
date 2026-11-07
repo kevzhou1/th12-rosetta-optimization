@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# build outputs (rebuild with the build.sh scripts)
+d3dx-sse-fix/d3dx_sse.obj
+x87-benchmarks/x87probe
+x87-benchmarks/x87probe2
+x87-benchmarks/x87probe3
+x87-benchmarks/x87probe4
+
+# never commit game files
+*.exe
+*.dat
+*.cfg
+
+.DS_Store
