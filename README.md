@@ -1,16 +1,13 @@
-# touhou-mac-perf
+# Touhou 12 Apple Silicon Optimization
 
-A speed fix for Touhou 12 (Undefined Fantastic Object) on Apple Silicon Macs,
-plus the tools used to find it. Under Wine (Whisky, CrossOver, etc.), TH12
-couldn't hold 60 fps on an M2 MacBook Air. This fix removes about a fifth of the
-work on the game's main thread, and the results are bit-identical.
+On my own M2 MBA, TH12 running through Whisky/Wine wasn't able to hold 60fps. This fix removes about a fifth of the
+work on the game's main thread (according to whatever benchmark claude made)
 
 ## Quick start
 
 You need:
-- TH12 **v1.00b**. The version is shown on the title screen.
-- **Python 3.8 or newer.** Run `python3 --version` in Terminal. If macOS offers to
-  install the Command Line Tools, accept. No other packages are needed.
+- TH12 **v1.00b** (the *****shrine download version)
+- **Python 3.8 or newer.**
 
 ```sh
 git clone <this repo's URL> touhou-mac-perf      # or download the ZIP and unzip it
@@ -37,7 +34,7 @@ What happens next depends on your setup:
 
 | | |
 |---|---|
-| `--frameskip` | Also draw only 2 of every 3 frames, for when the game still can't keep up. |
+| `--frameskip` | Draw only 2 of every 3 frames (i was annoyed that the default custom exe only has 1/2 and 1/3 as options)
 | `--uninstall` | Undo everything the script did. |
 | `--exe` | Make `th12_sse.exe` even if thcrap is installed. |
 | `--config NAME` | Only change one thcrap run config, e.g. `--config thpatch-en`. |
@@ -45,22 +42,14 @@ What happens next depends on your setup:
 **Who it helps:** Apple Silicon Macs running TH12 through Wine. On Intel Macs,
 Linux and Windows the slow part runs at full speed anyway, so there's nothing to gain.
 
-**Other v1.00b builds** (Steam, score-counter bugfix, the old static English
-patch) should work too. The script finds the calls to replace by reading the
-exe's import table, not from fixed addresses. It checks every byte it would
-change, and stops if anything isn't what it expects. Only the original v1.00b
-has been tested.
+**If you are using other versions of th12** I have no idea what will happen.
 
-## What was found
+## Why this is the way it is
 
-- The game's main thread was pinned at 100% of one core. The GPU, vsync and the
-  100 Hz display weren't the problem.
-- Almost all of that time was inside Rosetta's runtime library, **emulating x87
-  floating-point instructions in software**. TH12 was built in 2009 with VS2008,
-  and 99% of its float code is x87. TH14 and later were built with VS2012+, which
-  emits SSE by default, and Rosetta translates SSE into native ARM instructions.
-  That's why TH16/TH18/TH20 run fine in the same bottle (`analysis/compare_x87.py`).
-- About 19% of the main thread went to **Wine's own `d3dx9_40.dll`**.
+The game's main thread was pinned at 100% of one core. Almost all of that time was inside Rosetta's runtime library, emulating x87
+  floating-point instructions in software. TH12 was built in 2009 with VS2008,
+  and 99% of its float code is x87.
+- About 19% of the main thread went to Wine's own `d3dx9_40.dll`.
   `D3DXVec3Project` / `D3DXVec3ProjectArray` do three full 4x4 matrix multiplies
   per point, all in x87. The game calls them through two 6-byte import stubs.
 - The fix replaces those two functions with SSE versions. They do the same math
@@ -156,15 +145,3 @@ python3 analysis/compare_x87.py "<game folder>/th12.exe" "<other game>/th16.exe"
 
 Try step 2 on `analysis/example/th12_sample.txt` to see the original result:
 about 19% in `d3dx9_40.dll!D3DXVec3Project` / `ProjectArray`.
-
-## Requirements and limits
-
-- `patch_th12.py`: Python 3.8+, nothing else. The rest: Xcode command line tools
-  (`clang`, `objdump`) and Python 3. `verify.py` also needs `unicorn` and `numpy`.
-- The fix covers TH12 v1.00b. The rest of TH12's slowness is its own x87 code:
-  about 21,000 instructions spread thinly across the game, with no single hotspot.
-  That can't be fixed by hand-patching. The general fix would be faster x87
-  emulation in Rosetta itself (e.g. rosettax87), which didn't support this
-  macOS/Wine combination at the time of writing.
-- TH14 through TH20 import the same two functions. They're compiled with SSE and
-  mostly run fine, and nobody has measured whether the fix would help them.
